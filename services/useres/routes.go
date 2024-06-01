@@ -35,4 +35,5 @@ func handleRegister(w http.ResponseWriter, r *http.Request) {
 	if err := utils.ParseJSon(r, payload); err != nil {
 		utils.WriteError(w, http.StatusBadRequest, err)
 	}
+	utils.IsAlreadyReg(w, payload)
 }
