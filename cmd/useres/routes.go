@@ -4,7 +4,6 @@ import (
 	"e-com/cmd/db"
 	"e-com/services/model"
 	"e-com/services/utils"
-	"encoding/json"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -33,17 +32,29 @@ func handlelogin(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleRegister(w http.ResponseWriter, r *http.Request) {
-	db, _ := db.DbConnection()
+	db, err := db.DbConnection()
+	if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, err)
+		return
+	}
+	defer db.Close() // Ensure the database connection is closed after use
+
 	var payload model.RegisterUserPayload
 	if err := utils.ParseJson(r, &payload); err != nil {
 		utils.WriteError(w, http.StatusBadRequest, err)
 		return
 	}
-	json.NewDecoder(r.Body).Decode(&payload)
-	userId, err := utils.InsertUserInDb(db, w, payload)
+
+	// Check if user is already registered
+	userId, err := utils.IsAlreadyReg(db, payload)
 	if err != nil {
-		utils.WriteError(w, http.StatusInternalServerError, err)
+		if err.Error() == "user already exists" {
+			utils.WriteError(w, http.StatusConflict, err)
+		} else {
+			utils.WriteError(w, http.StatusInternalServerError, err)
+		}
 		return
 	}
+
 	utils.WriteJson(w, http.StatusOK, userId)
 }
