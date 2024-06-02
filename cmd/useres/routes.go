@@ -31,7 +31,14 @@ func handlelogin(w http.ResponseWriter, r *http.Request) {
 }
 func handleRegister(w http.ResponseWriter, r *http.Request) {
 	var payload model.RegisterUserPayload
-	if err := utils.ParseJSon(r, payload); err != nil {
+	if err := utils.ParseJson(r, &payload); err != nil {
 		utils.WriteError(w, http.StatusBadRequest, err)
+		return
 	}
+	userId, err := utils.IsAlreadyReg(w, payload)
+	if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, err)
+		return
+	}
+	utils.WriteJson(w, http.StatusOK, userId)
 }
