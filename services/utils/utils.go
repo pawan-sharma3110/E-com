@@ -2,11 +2,11 @@ package utils
 
 import (
 	"database/sql"
-	"e-com/cmd/db"
 	"e-com/services/model"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -20,19 +20,19 @@ func ParseJson(r *http.Request, payload any) error {
 	return json.NewDecoder(r.Body).Decode(payload)
 }
 func WriteJson(w http.ResponseWriter, status int, v any) error {
-	w.Header().Add("content-type", "aplication/json")
+	w.Header().Set("Content-Type", "application/json") // Correct the content-type typo
 	w.WriteHeader(status)
 	return json.NewEncoder(w).Encode(v)
 }
 func WriteError(w http.ResponseWriter, status int, err error) {
 	WriteJson(w, status, map[string]string{"error": err.Error()})
 }
-func insertUserInDb(db *sql.DB,payload model.RegisterUserPayload) (int, error) {
+func InsertUserInDb(db *sql.DB, w http.ResponseWriter, payload model.RegisterUserPayload) (int, error) {
 	query := `CREATE TABLE IF NOT EXISTS users(
 	id SERIAL PRIMARY KEY,
 	first_name TEXT NOT NULL,
 	last_name TEXT NOT NULL,
-	email TEXT NOT NULL,
+	email_id TEXT NOT NULL,
 	password TEXT NOT NULL,
 	created_at TIMESTAMP
 )`
@@ -40,13 +40,28 @@ func insertUserInDb(db *sql.DB,payload model.RegisterUserPayload) (int, error) {
 	if err != nil {
 		return 0, err
 	}
+
+	var emailId string
+	err = db.QueryRow(`SELECT email_id FROM users WHERE email_id=$1`, payload.EmailId).Scan(&emailId)
+
+	// Handle the case where the email ID already exists
+	if err == nil {
+		http.Error(w, "User already exists", http.StatusConflict)
+		return 0, fmt.Errorf("user already exists")
+	} else if err != sql.ErrNoRows {
+		// Handle any other errors that are not 'no rows'
+		return 0, err
+	}
+
+	// If we reach here, it means the email ID does not exist
+
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(payload.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return 0, err
 	}
 	var userid int
-	query = `INSERT INTO users(first_name,last_name,email,password,created_at)VALUES($1,$2,$3,$4,$5,$6)RETURNING id`
-	err = db.QueryRow(query, payload.FirstName, payload.LastName, payload.Email, string(hashedPassword)).Scan(&userid)
+	query = `INSERT INTO users(first_name,last_name,email_id,password,created_at)VALUES($1,$2,$3,$4,$5)RETURNING id`
+	err = db.QueryRow(query, payload.FirstName, payload.LastName, payload.EmailId, string(hashedPassword), time.Now()).Scan(&userid)
 	if err != nil {
 		return 0, err
 	}
@@ -54,23 +69,13 @@ func insertUserInDb(db *sql.DB,payload model.RegisterUserPayload) (int, error) {
 	return userid, nil
 }
 
-func IsAlreadyReg(w http.ResponseWriter, payload model.RegisterUserPayload) (int, error) {
-	var exists bool
-	db, err := db.DbConnection()
-	if err != nil {
-		return 0, err
-	}
-	err = db.QueryRow(`SELECT email_id FROM users WHERE email=$1`, payload.Email).Scan(&exists)
-	if err != nil {
-		return 0, err
-	}
-	if exists {
-		http.Error(w, "User already exists", http.StatusConflict)
-	}
-	userId, err := insertUserInDb(db, payload)
-	if err != nil {
-		return 0, err
-	}
+// func IsAlreadyReg(w http.ResponseWriter, payload model.RegisterUserPayload) (int, error) {
+// 	db, _ := db.DbConnection()
 
-	return userId, nil
-}
+// 	userId, err := InsertUserInDb(db, payload)
+// 	if err != nil {
+// 		return 0, err
+// 	}
+
+// 	return userId, nil
+// }
