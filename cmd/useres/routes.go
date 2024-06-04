@@ -37,7 +37,7 @@ func handleRegister(w http.ResponseWriter, r *http.Request) {
 		utils.WriteError(w, http.StatusInternalServerError, err)
 		return
 	}
-	defer db.Close() // Ensure the database connection is closed after use
+	defer db.Close() 
 
 	var payload model.RegisterUserPayload
 	if err := utils.ParseJson(r, &payload); err != nil {
@@ -45,7 +45,6 @@ func handleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check if user is already registered
 	userId, err := utils.IsAlreadyReg(db, payload)
 	if err != nil {
 		if err.Error() == "user already exists" {

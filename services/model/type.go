@@ -1,11 +1,16 @@
 package model
 
-import "time"
+import (
+	"time"
+
+	"github.com/dgrijalva/jwt-go"
+)
 
 type UserStore interface {
 	GetUserByEmail(email string) (*User, error)
 	CreateUSer(User) error
 }
+
 // type mockUserStore struct {
 // }
 
@@ -29,4 +34,14 @@ type RegisterUserPayload struct {
 	Password  string `json:"password"`
 }
 
+// Credentials represents the user credentials for login
+type Credentials struct {
+	GmailID  string `json:"gmail_id"`
+	Password string `json:"password"`
+}
 
+// Claims represents the JWT claims
+type Claims struct {
+	GmailID string `json:"gmail_id"`
+	jwt.StandardClaims
+}

@@ -59,15 +59,12 @@ func IsAlreadyReg(db *sql.DB, payload model.RegisterUserPayload) (int, error) {
 	var emailId string
 	err := db.QueryRow(`SELECT email_id FROM users WHERE email_id=$1`, payload.EmailId).Scan(&emailId)
 
-	// Handle the case where the email ID already exists
 	if err == nil {
 		return 0, fmt.Errorf("user already exists")
 	} else if err != sql.ErrNoRows {
-		// Handle any other errors that are not 'no rows'
 		return 0, err
 	}
 
-	// If we reach here, it means the email ID does not exist
 	userId, err := InsertUserInDb(db, payload)
 	if err != nil {
 		return 0, err
