@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/dgrijalva/jwt-go"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -41,7 +42,7 @@ func InsertUserInDb(db *sql.DB, payload model.RegisterUserPayload) (int, error) 
 		return 0, err
 	}
 
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(payload.Password), bcrypt.DefaultCost)
+	hashedPassword, err := HashedPassword(payload.Password)
 	if err != nil {
 		return 0, err
 	}
@@ -71,4 +72,60 @@ func IsAlreadyReg(db *sql.DB, payload model.RegisterUserPayload) (int, error) {
 	}
 
 	return userId, nil
+}
+func HashedPassword(password string) (pass string, err error) {
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(pass), bcrypt.DefaultCost)
+	if err != nil {
+		return "", err
+	}
+	return string(hashedPassword), nil
+}
+func UserDetailsInDb(w http.ResponseWriter, db *sql.DB, payload model.Credentials) {
+	var userCredentials model.Credentials
+	jwtSecret := "secret_key"
+	query := `SELECT email_id,password FROM users WHERE email_id=$1`
+	err := db.QueryRow(query, payload.EmailID).Scan(&userCredentials.EmailID, &userCredentials.Password)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "Unkwon Users", http.StatusUnauthorized)
+			return
+		}
+		http.Error(w, "Server error", http.StatusInternalServerError)
+		fmt.Println(err)
+		return
+	}
+
+	payload.Password, err = HashedPassword(payload.Password)
+	if err != nil {
+		http.Error(w, "Server error", http.StatusInternalServerError)
+		fmt.Println("err")
+		return
+	}
+	if payload.Password != userCredentials.Password {
+		http.Error(w, "Invalid user password", http.StatusUnauthorized)
+		println(payload.Password, userCredentials.Password)
+		return
+	}
+	// Generate a new JWT for the user
+	expirationTime := time.Now().Add(5 * time.Minute) // Token valid for 5 minutes
+	claims := &model.Claims{
+		GmailID: payload.EmailID,
+		StandardClaims: jwt.StandardClaims{
+			ExpiresAt: expirationTime.Unix(), // Set token expiration time
+		},
+	}
+
+	// Create the JWT using the specified signing method and claims
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenString, err := token.SignedString([]byte(jwtSecret))
+	if err != nil {
+		http.Error(w, "Server error", http.StatusInternalServerError)
+		fmt.Println("3")
+		return
+	}
+
+	// Return the generated JWT to the client
+	w.Header().Set("content-type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"token": tokenString})
+
 }

@@ -36,7 +36,7 @@ type RegisterUserPayload struct {
 
 // Credentials represents the user credentials for login
 type Credentials struct {
-	GmailID  string `json:"gmail_id"`
+	EmailID  string `json:"email_id"`
 	Password string `json:"password"`
 }
 

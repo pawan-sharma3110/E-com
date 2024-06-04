@@ -28,7 +28,17 @@ func EcomRouter() *mux.Router {
 	return r
 }
 func handlelogin(w http.ResponseWriter, r *http.Request) {
-
+	db, err := db.DbConnection()
+	if err != nil {
+		utils.WriteError(w, http.StatusInternalServerError, err)
+		return
+	}
+	var payload model.Credentials
+	if err := utils.ParseJson(r, &payload); err != nil {
+		utils.WriteError(w, http.StatusBadRequest, err)
+		return
+	}
+	utils.UserDetailsInDb(w, db, payload)
 }
 
 func handleRegister(w http.ResponseWriter, r *http.Request) {
@@ -37,7 +47,7 @@ func handleRegister(w http.ResponseWriter, r *http.Request) {
 		utils.WriteError(w, http.StatusInternalServerError, err)
 		return
 	}
-	defer db.Close() 
+	defer db.Close()
 
 	var payload model.RegisterUserPayload
 	if err := utils.ParseJson(r, &payload); err != nil {
