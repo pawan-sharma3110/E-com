@@ -80,6 +80,11 @@ func HashedPassword(password string) (pass string, err error) {
 	}
 	return string(hashedPassword), nil
 }
+func comparePasswords(hashedPassword string, plainPassword []byte) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), plainPassword)
+	return err == nil
+}
+
 func UserDetailsInDb(w http.ResponseWriter, db *sql.DB, payload model.Credentials) {
 	var userCredentials model.Credentials
 	jwtSecret := "secret_key"
@@ -95,17 +100,14 @@ func UserDetailsInDb(w http.ResponseWriter, db *sql.DB, payload model.Credential
 		return
 	}
 
-	payload.Password, err = HashedPassword(payload.Password)
-	if err != nil {
-		http.Error(w, "Server error", http.StatusInternalServerError)
-		fmt.Println("err")
-		return
+	validPAssword := comparePasswords(userCredentials.Password, []byte(payload.Password))
+	if !validPAssword {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{"token": "Wrong password"})
+
 	}
-	if payload.Password != userCredentials.Password {
-		http.Error(w, "Invalid user password", http.StatusUnauthorized)
-		println(payload.Password, userCredentials.Password)
-		return
-	}
+
+	println(validPAssword)
 	// Generate a new JWT for the user
 	expirationTime := time.Now().Add(5 * time.Minute) // Token valid for 5 minutes
 	claims := &model.Claims{
