@@ -42,7 +42,7 @@ func InsertUserInDb(db *sql.DB, payload model.RegisterUserPayload) (int, error) 
 		return 0, err
 	}
 
-	hashedPassword, err := HashedPassword(payload.Password)
+	hashedPassword, err := gernateHashedPassword(payload.Password)
 	if err != nil {
 		return 0, err
 	}
@@ -73,8 +73,8 @@ func IsAlreadyReg(db *sql.DB, payload model.RegisterUserPayload) (int, error) {
 
 	return userId, nil
 }
-func HashedPassword(password string) (pass string, err error) {
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(pass), bcrypt.DefaultCost)
+func gernateHashedPassword(password string) (pass string, err error) {
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return "", err
 	}
@@ -103,10 +103,9 @@ func UserDetailsInDb(w http.ResponseWriter, db *sql.DB, payload model.Credential
 	validPAssword := comparePasswords(userCredentials.Password, []byte(payload.Password))
 	if !validPAssword {
 		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]string{"token": "Wrong password"})
-
+		json.NewEncoder(w).Encode(map[string]string{"Error": "Wrong password"})
+		return
 	}
-
 	println(validPAssword)
 	// Generate a new JWT for the user
 	expirationTime := time.Now().Add(5 * time.Minute) // Token valid for 5 minutes
