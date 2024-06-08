@@ -122,7 +122,6 @@ func UserDetailsInDb(w http.ResponseWriter, db *sql.DB, payload model.Credential
 	if err != nil {
 		http.Error(w, "Server error", http.StatusInternalServerError)
 		fmt.Println("3")
-		return
 	}
 
 	// Return the generated JWT to the client
